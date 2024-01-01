@@ -45,20 +45,22 @@ class Transfer implements TransferInterface, PaymentStatusInterface
 
 	public function processTransfer(): void
 	{
-		if ($this->status !== PaymentStatusInterface::PENDING) {
-			return;
-		}
+		try {
+			if ($this->status === PaymentStatusInterface::PENDING) {
+				$senderBalance = $this->senderCompany->getBalance();
+				$receiverBalance = $this->receiverCompany->getBalance();
 
-		$senderBalance = $this->senderCompany->getBalance();
-		$receiverBalance = $this->receiverCompany->getBalance();
-
-		if ($senderBalance < $this->amount) {
+				if ($senderBalance >= $this->amount) {
+					$this->senderCompany->updateBalance(-$this->amount);
+					$this->receiverCompany->updateBalance($this->amount);
+					$this->status = PaymentStatusInterface::SUCCESS;
+				} else {
+					throw new \Exception("Insufficient balance for transfer");
+				}
+			}
+		} catch (\Exception $e) {
 			$this->status = PaymentStatusInterface::FAILED;
-			return;
+			echo "Error: " . $e->getMessage() . PHP_EOL;
 		}
-
-		$this->senderCompany->updateBalance(-$this->amount);
-		$this->receiverCompany->updateBalance($this->amount);
-		$this->status = PaymentStatusInterface::SUCCESS;
 	}
 }
